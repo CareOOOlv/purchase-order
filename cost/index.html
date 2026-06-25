@@ -295,6 +295,13 @@
         });
 
         setQuantities(newQty);
+        // 识别完成后自动滚动到底部预览卡片
+        setTimeout(() => {
+          const preview = document.getElementById('preview-cost');
+          if (preview) {
+            preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
       }, [textInput, quantities]);
 
       // 计算汇总
