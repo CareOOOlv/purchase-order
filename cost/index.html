@@ -235,18 +235,19 @@
       const [showPreview, setShowPreview] = useState(false);
       const [shouldScroll, setShouldScroll] = useState(false); // 触发滚动标记
 
+      // refs（必须在所有 hooks 之前声明，确保顺序一致）
+      const textInputRef = React.useRef(textInput);
+      textInputRef.current = textInput;
+      const quantitiesRef = React.useRef(quantities);
+      quantitiesRef.current = quantities;
+
       // 手动输入
       const handleQtyChange = useCallback((id, val) => {
         const num = parseInt(val) || 0;
         setQuantities(prev => ({ ...prev, [id]: num < 0 ? 0 : num }));
       }, []);
 
-      // 智能识别粘贴文字（用 ref 取最新 textInput，避免闭包问题）
-      const textInputRef = React.useRef(textInput);
-      textInputRef.current = textInput;
-      const quantitiesRef = React.useRef(quantities);
-      quantitiesRef.current = quantities;
-
+      // 智能识别粘贴文字（用 ref 取最新值，避免闭包问题）
       const handleParse = useCallback(() => {
         const text = textInputRef.current.trim();
         if (!text) return;
