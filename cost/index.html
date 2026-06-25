@@ -145,7 +145,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useCallback, useMemo } = React;
+    const { useState, useCallback, useMemo, useEffect, useRef } = React;
 
     // ========== 46项产品成本数据（去掉咖奶，单位与订货工具一致） ==========
     const costProducts = [
@@ -236,9 +236,9 @@
       const [shouldScroll, setShouldScroll] = useState(false); // 触发滚动标记
 
       // refs（必须在所有 hooks 之前声明，确保顺序一致）
-      const textInputRef = React.useRef(textInput);
+      const textInputRef = useRef(textInput);
       textInputRef.current = textInput;
-      const quantitiesRef = React.useRef(quantities);
+      const quantitiesRef = useRef(quantities);
       quantitiesRef.current = quantities;
 
       // 手动输入
