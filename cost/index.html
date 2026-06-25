@@ -241,12 +241,17 @@
         setQuantities(prev => ({ ...prev, [id]: num < 0 ? 0 : num }));
       }, []);
 
-      // 智能识别粘贴文字
+      // 智能识别粘贴文字（用 ref 取最新 textInput，避免闭包问题）
+      const textInputRef = React.useRef(textInput);
+      textInputRef.current = textInput;
+      const quantitiesRef = React.useRef(quantities);
+      quantitiesRef.current = quantities;
+
       const handleParse = useCallback(() => {
-        const text = textInput.trim();
+        const text = textInputRef.current.trim();
         if (!text) return;
         const lines = text.split('\n').filter(l => l.trim());
-        const newQty = { ...quantities };
+        const newQty = { ...quantitiesRef.current };
 
         lines.forEach(line => {
           const cleaned = line.replace(/^[\d]+[：:、.]?\s*/, '').trim();
@@ -298,7 +303,7 @@
         setQuantities(newQty);
         setTextInput(''); // 清空输入框，避免重复点击加倍生成
         setShouldScroll(true); // 标记需要滚动到底部预览
-      }, [textInput, quantities]);
+      }, []);
 
       // 计算汇总
       const summary = useMemo(() => {
