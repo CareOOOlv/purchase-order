@@ -258,14 +258,18 @@
         const newQty = { ...quantitiesRef.current };
 
         lines.forEach(line => {
-          const cleaned = line.replace(/^[\d]+[：:、.]?\s*/, '').trim();
+          const raw = line.trim();
+          // 去掉行首序号（如 "1、xxx" 或 "1. xxx"），但保留产品名中的数字（如"500冷饮杯"）
+          const cleaned = raw.replace(/^[\d]+[、.：:\s]+/, '').trim();
           let matched = false;
 
-          for (const [key, product] of Object.entries(matchMap)) {
+          // 第一轮：按 matchMap key 长度降序匹配（优先匹配长的，如"500冷饮杯"优先于"500杯"）
+          const sortedKeys = Object.entries(matchMap).sort((a, b) => b[0].length - a[0].length);
+          for (const [key, product] of sortedKeys) {
             const idx = cleaned.indexOf(key);
             if (idx !== -1) {
               const after = cleaned.substring(idx + key.length).trim();
-              const qtyMatch = after.match(/[\d]+/);
+              const qtyMatch = after.match(/^[\d]+/);
               const qty = qtyMatch ? parseInt(qtyMatch[0]) : 1;
               newQty[product.id] = (newQty[product.id] || 0) + qty;
               matched = true;
@@ -273,11 +277,12 @@
             }
           }
 
+          // 第二轮：宽松匹配（includes 检查）
           if (!matched) {
-            for (const [key, product] of Object.entries(matchMap)) {
+            for (const [key, product] of sortedKeys) {
               if (cleaned.includes(key)) {
                 const after = cleaned.substring(cleaned.indexOf(key) + key.length).trim();
-                const qtyMatch = after.match(/[\d]+/);
+                const qtyMatch = after.match(/^[\d]+/);
                 const qty = qtyMatch ? parseInt(qtyMatch[0]) : 1;
                 newQty[product.id] = (newQty[product.id] || 0) + qty;
                 matched = true;
@@ -286,13 +291,14 @@
             }
           }
 
+          // 第三轮：数字在前的格式（如 "5 冷饮杯"）
           if (!matched) {
-            const numMatch = cleaned.match(/^(\d+)\s*/);
+            const numMatch = cleaned.match(/^(\d+)\s+/);
             if (numMatch) {
               const num = parseInt(numMatch[1]);
               const rest = cleaned.substring(numMatch[0].length).trim();
               let bestMatch = null, bestLen = 0;
-              for (const [key, product] of Object.entries(matchMap)) {
+              for (const [key, product] of sortedKeys) {
                 if (rest.includes(key) && key.length > bestLen) {
                   bestMatch = { key, product }; bestLen = key.length;
                 }
