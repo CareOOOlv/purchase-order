@@ -233,6 +233,7 @@
       const [textInput, setTextInput] = useState("");
       const [quantities, setQuantities] = useState({});
       const [showPreview, setShowPreview] = useState(false);
+      const [shouldScroll, setShouldScroll] = useState(false); // 触发滚动标记
 
       // 手动输入
       const handleQtyChange = useCallback((id, val) => {
@@ -295,13 +296,8 @@
         });
 
         setQuantities(newQty);
-        // 识别完成后自动滚动到底部预览卡片
-        setTimeout(() => {
-          const preview = document.getElementById('preview-cost');
-          if (preview) {
-            preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 100);
+        setTextInput(''); // 清空输入框，避免重复点击加倍生成
+        setShouldScroll(true); // 标记需要滚动到底部预览
       }, [textInput, quantities]);
 
       // 计算汇总
@@ -319,6 +315,19 @@
           itemCount: costProducts.filter(p => (quantities[p.id] || 0) > 0).length,
         };
       }, [quantities]);
+
+      // 识别后自动滚动到底部预览卡片
+      useEffect(() => {
+        if (shouldScroll && summary.itemCount > 0) {
+          setShouldScroll(false);
+          setTimeout(() => {
+            const preview = document.getElementById('preview-cost');
+            if (preview) {
+              preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }, 50);
+        }
+      }, [shouldScroll, summary.itemCount]);
 
       // 导出 Excel（仅含数量和成本，不含售价/利润）
       const handleExport = useCallback(() => {
