@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>成本测算工具 - öh mo!</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-hover: #047857;
+      --primary-light: #ecfdf5;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased;
+    }
+    .app { min-height: 100vh; display: flex; flex-direction: column; }
+    /* Navbar */
+    .navbar {
+      position: sticky; top: 0; z-index: 100; background: var(--card-bg);
+      border-bottom: 1px solid var(--border); box-shadow: var(--shadow);
+      padding: 0 16px; height: 56px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .navbar-brand { display: flex; align-items: center; gap: 8px; }
+    .navbar-logo { font-size: 24px; line-height: 1; }
+    .navbar-title { font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .navbar-link { font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 500; }
+    .navbar-link:hover { text-decoration: underline; }
+    /* Main */
+    .main-content { flex: 1; padding: 16px; max-width: 1000px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+    /* Card */
+    .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+    .card-header { display: flex; align-items: center; gap: 6px; padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 15px; background: #fafbfc; }
+    .card-icon { font-size: 18px; }
+    .card-hint { font-weight: 400; font-size: 12px; color: var(--text-muted); margin-left: auto; }
+    .card-body { padding: 16px; }
+    .card-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--primary-light); flex-wrap: wrap; gap: 8px; }
+    /* Inputs */
+    .textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; color: var(--text); resize: vertical; font-family: inherit; outline: none; transition: border-color 0.2s; }
+    .textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+    .input { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; color: var(--text); background: #fff; outline: none; transition: border-color 0.2s; }
+    .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; font-family: inherit; }
+    .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-secondary { background: #fff; color: var(--primary); border-color: var(--primary); }
+    .btn-secondary:hover { background: var(--primary-light); }
+    .btn-outline { background: #fff; color: var(--text-secondary); border-color: var(--border); }
+    .btn-outline:hover { background: #f1f5f9; }
+    .btn-full { width: 100%; margin-top: 10px; padding: 10px; font-size: 15px; }
+    .btn-sm { font-size: 12px; padding: 4px 10px; }
+    .btn-lg { padding: 10px 16px; font-size: 15px; font-weight: 600; }
+    /* Table */
+    .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .product-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 800px; }
+    .product-table th { background: #f1f5f9; padding: 10px 8px; text-align: center; font-weight: 600; font-size: 13px; color: var(--text-secondary); border-bottom: 2px solid var(--border); white-space: nowrap; }
+    .product-table td { padding: 8px; text-align: center; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .product-table tbody tr:hover { background: #f8fafc; }
+    .row-active { background: var(--primary-light) !important; }
+    .col-seq { width: 40px; }
+    .col-name { text-align: left !important; min-width: 150px; }
+    .col-price { width: 72px; }
+    .col-unit { width: 48px; color: var(--text-secondary); }
+    .col-qty { width: 72px; }
+    .col-cost { width: 80px; font-weight: 600; }
+    .col-sell { width: 80px; }
+    .col-profit { width: 80px; }
+    .qty-input { width: 60px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: center; font-size: 14px; font-weight: 500; outline: none; transition: border-color 0.2s; }
+    .qty-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(5,150,105,0.15); }
+    .cost-highlight { color: var(--primary); }
+    .profit-positive { color: var(--primary); }
+    .profit-negative { color: var(--danger); }
+    .profit-zero { color: var(--text-muted); }
+    /* Bottom bar */
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: var(--card-bg); border-top: 1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.08); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .bottom-bar-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .bottom-bar-item { display: flex; align-items: baseline; gap: 4px; }
+    .bottom-bar-label { font-size: 12px; color: var(--text-secondary); }
+    .bottom-bar-value { font-size: 16px; font-weight: 700; color: var(--primary); }
+    .bottom-bar-value.warn { color: var(--danger); }
+    .bottom-bar-actions { display: flex; gap: 6px; }
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+    .tab { padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--text-secondary); transition: all 0.2s; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    /* Summary cards */
+    .summary-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .summary-card { flex: 1; min-width: 150px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-align: center; }
+    .summary-card-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+    .summary-card-value { font-size: 22px; font-weight: 700; }
+    .summary-card-value.green { color: var(--primary); }
+    .summary-card-value.red { color: var(--danger); }
+    .summary-card-value.gray { color: var(--text-secondary); }
+    /* Footer */
+    .footer { text-align: center; padding: 16px; padding-bottom: 90px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: auto; }
+    /* Responsive */
+    @media (max-width: 768px) {
+      .main-content { padding: 10px; gap: 12px; }
+      .card-header { font-size: 14px; padding: 10px 12px; }
+      .card-hint { font-size: 11px; margin-left: 0; width: 100%; }
+      .card-body { padding: 12px; }
+      .product-table { font-size: 13px; min-width: 700px; }
+      .product-table th, .product-table td { padding: 6px 4px; }
+      .qty-input { width: 52px; padding: 5px 4px; font-size: 13px; }
+      .summary-row { flex-direction: column; }
+      .bottom-bar { padding: 8px 10px; flex-direction: column; }
+      .bottom-bar-group { width: 100%; justify-content: center; }
+      .bottom-bar-value { font-size: 15px; }
+      .btn-lg { font-size: 13px; padding: 8px 10px; }
+      .footer { padding-bottom: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useCallback, useMemo } = React;
+
+    // ========== 46项产品成本数据（去掉咖奶，单位与订货工具一致） ==========
+    const costProducts = [
+      { id:1,  name:"透明单杯袋",             price:0.70,  cost:0.45,  unit:"个" },
+      { id:2,  name:"透明双杯袋",             price:0.75,  cost:0.495, unit:"个" },
+      { id:3,  name:"透明单杯托",             price:0.29,  cost:0.215, unit:"个" },
+      { id:4,  name:"透明双杯托",             price:0.40,  cost:0.315, unit:"个" },
+      { id:5,  name:"保温单杯袋",             price:0.72,  cost:0.41,  unit:"个" },
+      { id:6,  name:"保温双杯袋",             price:0.84,  cost:0.505, unit:"个" },
+      { id:7,  name:"四杯托",                 price:200,   cost:170,   unit:"箱" },
+      { id:8,  name:"保温4杯袋",              price:1000,  cost:720,   unit:"箱" },
+      { id:9,  name:"保温袋纸拖",             price:120,   cost:105,   unit:"箱" },
+      { id:10, name:"杯套",                   price:360,   cost:275,   unit:"箱" },
+      { id:11, name:"外卖封口贴",             price:9,     cost:6,     unit:"卷" },
+      { id:12, name:"定制粗吸管",             price:210,   cost:135,   unit:"箱" },
+      { id:13, name:"定制细吸管(5000个)",     price:210,   cost:125,   unit:"箱" },
+      { id:14, name:"拱盖（两箱起定）",        price:100,   cost:82,    unit:"箱" },
+      { id:15, name:"直饮盖（两箱起定）",      price:140,   cost:120,   unit:"箱" },
+      { id:16, name:"500冷饮杯",              price:320,   cost:240,   unit:"箱" },
+      { id:17, name:"700冷饮杯",              price:380,   cost:292,   unit:"箱" },
+      { id:18, name:"泰式盖",                 price:180,   cost:160,   unit:"箱" },
+      { id:19, name:"茶叶",                   price:1300,  cost:1050,  unit:"箱" },
+      { id:20, name:"胶带（40个加底座）",      price:190,   cost:180,   unit:"套" },
+      { id:21, name:"口罩",                   price:0.40,  cost:0.35,  unit:"个" },
+      { id:22, name:"五味子糖浆",             price:85,    cost:75,    unit:"瓶" },
+      { id:23, name:"香蕉粉",                 price:100,   cost:80,    unit:"袋" },
+      { id:24, name:"桃子粉",                 price:672,   cost:642,   unit:"箱" },
+      { id:25, name:"芒果原浆",               price:300,   cost:216,   unit:"箱" },
+      { id:26, name:"红苹果原浆(一箱12瓶）",   price:324,   cost:252,   unit:"箱" },
+      { id:27, name:"葡萄原浆(一箱12瓶）",     price:384,   cost:312,   unit:"箱" },
+      { id:28, name:"定制石榴汁(一箱12瓶）",   price:30,    cost:25,    unit:"瓶" },
+      { id:29, name:"冷冻凤梨浆(一箱12瓶）",   price:336,   cost:264,   unit:"箱" },
+      { id:30, name:"牛奶(一箱12瓶）",         price:82,    cost:68,    unit:"箱" },
+      { id:31, name:"厚椰乳(一箱12瓶）",       price:132,   cost:120,   unit:"箱" },
+      { id:32, name:"青苹果羽衣甘蓝",          price:42,    cost:38,    unit:"瓶" },
+      { id:33, name:"接骨木莫林",             price:70,    cost:63,    unit:"瓶" },
+      { id:34, name:"绿薄荷莫林",             price:70,    cost:63,    unit:"瓶" },
+      { id:35, name:"水蜜桃莫林",             price:70,    cost:63,    unit:"瓶" },
+      { id:36, name:"柠檬莫林",               price:70,    cost:63,    unit:"瓶" },
+      { id:37, name:"可可红茶上允",           price:178,   cost:162,   unit:"箱" },
+      { id:38, name:"草莓上允",               price:166,   cost:150,   unit:"箱" },
+      { id:39, name:"红苹果上允",             price:175,   cost:150,   unit:"箱" },
+      { id:40, name:"玫瑰上允",               price:228,   cost:186,   unit:"箱" },
+      { id:41, name:"桃子上允",               price:232,   cost:200,   unit:"箱" },
+      { id:42, name:"葡萄上允",               price:232,   cost:200,   unit:"箱" },
+      { id:43, name:"抹茶粉",                 price:80,    cost:80,    unit:"袋" },
+      { id:45, name:"杏茶",                   price:268,   cost:216,   unit:"箱" },
+      { id:46, name:"芭乐上允",               price:232,   cost:200,   unit:"箱" },
+      { id:47, name:"芭乐果酱",               price:328,   cost:324,   unit:"箱" },
+    ];
+
+    // 构建匹配映射
+    const aliases = {
+      "透明单杯袋":["单杯袋","透明单杯","单杯"], "透明双杯袋":["双杯袋","透明双杯","双杯"],
+      "透明单杯托":["单杯托","单杯底座","单杯底托","透明杯托"], "透明双杯托":["双杯托","双杯底座","双杯底托"],
+      "保温单杯袋":["保温单杯","保温杯袋单"], "保温双杯袋":["保温双杯","保温杯袋双"],
+      "四杯托":["4杯托","四杯底托","4杯底托"], "保温4杯袋":["保温四杯袋","四杯袋","4杯袋"],
+      "保温袋纸拖":["纸拖","保温纸拖"], "杯套":["杯子套"], "外卖封口贴":["封口贴","外卖贴"],
+      "定制粗吸管":["粗吸管"], "定制细吸管(5000个)":["细吸管","定制细吸管"],
+      "拱盖（两箱起定）":["拱盖"], "直饮盖（两箱起定）":["直饮盖"],
+      "500冷饮杯":["500杯","冷饮杯500"], "700冷饮杯":["700杯","冷饮杯700"],
+      "泰式盖":["泰盖"], "茶叶":["茶"], "胶带（40个加底座）":["胶带","胶带底座"],
+      "口罩":[], "五味子糖浆":["五味子"], "香蕉粉":["香蕉"], "桃子粉":["桃子"],
+      "芒果原浆":["芒果"], "红苹果原浆(一箱12瓶）":["红苹果原浆","红苹果"],
+      "葡萄原浆(一箱12瓶）":["葡萄原浆","葡萄"], "定制石榴汁(一箱12瓶）":["定制石榴汁","石榴汁","石榴"],
+      "冷冻凤梨浆(一箱12瓶）":["冷冻凤梨浆","凤梨浆","凤梨"],
+      "牛奶(一箱12瓶）":["牛奶"], "厚椰乳(一箱12瓶）":["厚椰乳","椰乳"],
+      "青苹果羽衣甘蓝":["青苹果","羽衣甘蓝","青苹果甘蓝"],
+      "接骨木莫林":["接骨木"], "绿薄荷莫林":["绿薄荷","薄荷"], "水蜜桃莫林":["水蜜桃"],
+      "柠檬莫林":["柠檬"], "可可红茶上允":["可可红茶","可可上允"], "草莓上允":["草莓"],
+      "红苹果上允":["红苹果允"], "玫瑰上允":["玫瑰"], "桃子上允":["桃子允"],
+      "葡萄上允":["葡萄允"], "抹茶粉":["抹茶"], "杏茶":["杏"],
+      "芭乐上允":["芭乐"], "芭乐果酱":["芭乐酱","果酱"],
+    };
+
+    const matchMap = {};
+    costProducts.forEach(p => {
+      const keys = [p.name, ...(aliases[p.name] || [])];
+      keys.forEach(k => matchMap[k] = p);
+    });
+
+    // ========== App Component ==========
+    function App() {
+      const [tab, setTab] = useState("paste"); // "paste" | "manual"
+      const [textInput, setTextInput] = useState("");
+      const [quantities, setQuantities] = useState({});
+
+      // 手动输入
+      const handleQtyChange = useCallback((id, val) => {
+        const num = parseInt(val) || 0;
+        setQuantities(prev => ({ ...prev, [id]: num < 0 ? 0 : num }));
+      }, []);
+
+      // 智能识别粘贴文字
+      const handleParse = useCallback(() => {
+        const text = textInput.trim();
+        if (!text) return;
+        const lines = text.split('\n').filter(l => l.trim());
+        const newQty = { ...quantities };
+
+        lines.forEach(line => {
+          const cleaned = line.replace(/^[\d]+[：:、.]?\s*/, '').trim();
+          let matched = false;
+
+          for (const [key, product] of Object.entries(matchMap)) {
+            const idx = cleaned.indexOf(key);
+            if (idx !== -1) {
+              const after = cleaned.substring(idx + key.length).trim();
+              const qtyMatch = after.match(/[\d]+/);
+              const qty = qtyMatch ? parseInt(qtyMatch[0]) : 1;
+              newQty[product.id] = (newQty[product.id] || 0) + qty;
+              matched = true;
+              break;
+            }
+          }
+
+          if (!matched) {
+            for (const [key, product] of Object.entries(matchMap)) {
+              if (cleaned.includes(key)) {
+                const after = cleaned.substring(cleaned.indexOf(key) + key.length).trim();
+                const qtyMatch = after.match(/[\d]+/);
+                const qty = qtyMatch ? parseInt(qtyMatch[0]) : 1;
+                newQty[product.id] = (newQty[product.id] || 0) + qty;
+                matched = true;
+                break;
+              }
+            }
+          }
+
+          if (!matched) {
+            const numMatch = cleaned.match(/^(\d+)\s*/);
+            if (numMatch) {
+              const num = parseInt(numMatch[1]);
+              const rest = cleaned.substring(numMatch[0].length).trim();
+              let bestMatch = null, bestLen = 0;
+              for (const [key, product] of Object.entries(matchMap)) {
+                if (rest.includes(key) && key.length > bestLen) {
+                  bestMatch = { key, product }; bestLen = key.length;
+                }
+              }
+              if (bestMatch) {
+                newQty[bestMatch.product.id] = (newQty[bestMatch.product.id] || 0) + num;
+              }
+            }
+          }
+        });
+
+        setQuantities(newQty);
+      }, [textInput, quantities]);
+
+      // 计算汇总
+      const summary = useMemo(() => {
+        let totalCost = 0, totalSell = 0;
+        costProducts.forEach(p => {
+          const qty = quantities[p.id] || 0;
+          totalCost += qty * p.cost;
+          totalSell += qty * p.price;
+        });
+        return {
+          totalCost: totalCost.toFixed(2),
+          totalSell: totalSell.toFixed(2),
+          totalProfit: (totalSell - totalCost).toFixed(2),
+          itemCount: costProducts.filter(p => (quantities[p.id] || 0) > 0).length,
+        };
+      }, [quantities]);
+
+      // 导出 Excel
+      const handleExport = useCallback(() => {
+        const active = costProducts.filter(p => (quantities[p.id] || 0) > 0);
+        if (active.length === 0) { alert('请先填写数量'); return; }
+        const today = new Date();
+        const ds = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+        const rows = [
+          ['序号','商品名称','数量','单位','成本单价(元)','成本小计(元)','售价(元)','利润(元)'],
+          ...active.map((p,i) => {
+            const qty = quantities[p.id] || 0;
+            return [i+1, p.name, qty, p.unit, p.cost.toFixed(2), (qty*p.cost).toFixed(2), (qty*p.price).toFixed(2), (qty*(p.price-p.cost)).toFixed(2)];
+          }),
+          ['','','','','合计', summary.totalCost, summary.totalSell, summary.totalProfit],
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{wch:6},{wch:28},{wch:8},{wch:6},{wch:12},{wch:12},{wch:12},{wch:12}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '成本测算');
+        XLSX.writeFile(wb, `成本测算${ds}.xlsx`);
+      }, [quantities, summary]);
+
+      // 复制文字格式
+      const handleCopyText = useCallback(() => {
+        const active = costProducts.filter(p => (quantities[p.id] || 0) > 0);
+        if (active.length === 0) { alert('请先填写数量'); return; }
+        const lines = active.map(p => `${p.name}:${quantities[p.id]}${p.unit}`);
+        navigator.clipboard.writeText(lines.join('\n')).then(() => {
+          alert('已复制到剪贴板');
+        }).catch(() => {
+          alert('复制失败，请手动复制');
+        });
+      }, [quantities]);
+
+      // 重置
+      const handleReset = useCallback(() => {
+        setQuantities({});
+        setTextInput("");
+      }, []);
+
+      const profitClass = parseFloat(summary.totalProfit) > 0 ? 'bottom-bar-value' : parseFloat(summary.totalProfit) < 0 ? 'bottom-bar-value warn' : 'bottom-bar-value';
+
+      return (
+        <div className="app">
+          {/* Navbar */}
+          <nav className="navbar">
+            <div className="navbar-brand">
+              <span className="navbar-logo">💰</span>
+              <h1 className="navbar-title">öh mo! · 成本测算工具</h1>
+            </div>
+            <a className="navbar-link" href="../purchase-order/">← 订货工具</a>
+          </nav>
+
+          <main className="main-content">
+            {/* Tabs */}
+            <div className="card">
+              <div className="tabs">
+                <button className={`tab ${tab === 'paste' ? 'active' : ''}`} onClick={() => setTab('paste')}>📋 粘贴识别</button>
+                <button className={`tab ${tab === 'manual' ? 'active' : ''}`} onClick={() => setTab('manual')}>✏️ 手动输入</button>
+              </div>
+              <div className="card-body">
+                {tab === 'paste' ? (
+                  <>
+                    <p style={{fontSize:13,color:'var(--text-secondary)',marginBottom:8}}>
+                      粘贴订货清单文字，自动识别商品和数量（格式：商品名+数量+单位，如"牛奶40箱"）
+                    </p>
+                    <textarea
+                      className="textarea" rows={5}
+                      placeholder={`例如:\n牛奶:40箱\n咖奶:10箱\n茶叶:2箱\n单杯底座:1箱\n桃子上允:2箱\n玫瑰上允:10箱\n草莓上允:10箱\n石榴汁:1箱`}
+                      value={textInput}
+                      onChange={e => setTextInput(e.target.value)}
+                    />
+                    <button className="btn btn-primary btn-full" onClick={handleParse}>
+                      🔍 识别并计算成本
+                    </button>
+                  </>
+                ) : (
+                  <p style={{fontSize:13,color:'var(--text-secondary)',marginBottom:8}}>
+                    在下表中逐项输入订货数量，成本自动计算
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 汇总卡片 */}
+            {summary.itemCount > 0 && (
+              <div className="summary-row">
+                <div className="summary-card">
+                  <div className="summary-card-label">品项数</div>
+                  <div className="summary-card-value gray">{summary.itemCount}</div>
+                </div>
+                <div className="summary-card">
+                  <div className="summary-card-label">总成本</div>
+                  <div className="summary-card-value red">¥{summary.totalCost}</div>
+                </div>
+                <div className="summary-card">
+                  <div className="summary-card-label">总售价</div>
+                  <div className="summary-card-value gray">¥{summary.totalSell}</div>
+                </div>
+                <div className="summary-card">
+                  <div className="summary-card-label">总利润</div>
+                  <div className={`summary-card-value ${parseFloat(summary.totalProfit) > 0 ? 'green' : parseFloat(summary.totalProfit) < 0 ? 'red' : 'gray'}`}>
+                    ¥{summary.totalProfit}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 产品清单表格 */}
+            <section className="card">
+              <div className="card-header">
+                <span className="card-icon">📊</span>
+                <span>成本明细</span>
+                <span className="card-hint">（数量留空默认为0，成本=数量×成本单价，利润=售价-成本）</span>
+              </div>
+              <div className="table-wrapper">
+                <table className="product-table">
+                  <thead>
+                    <tr>
+                      <th className="col-seq">序号</th>
+                      <th className="col-name">商品名称</th>
+                      <th className="col-price">成本单价</th>
+                      <th className="col-price">售价</th>
+                      <th className="col-unit">单位</th>
+                      <th className="col-qty">数量</th>
+                      <th className="col-cost">成本小计</th>
+                      <th className="col-profit">利润</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {costProducts.map(p => {
+                      const qty = quantities[p.id] || 0;
+                      const itemCost = (qty * p.cost).toFixed(2);
+                      const itemProfit = (qty * (p.price - p.cost)).toFixed(2);
+                      const hasQty = qty > 0;
+                      const profitNum = parseFloat(itemProfit);
+                      return (
+                        <tr key={p.id} className={hasQty ? 'row-active' : ''}>
+                          <td className="col-seq">{p.id}</td>
+                          <td className="col-name">{p.name}</td>
+                          <td className="col-price">¥{p.cost.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}</td>
+                          <td className="col-price">¥{p.price.toFixed(2)}</td>
+                          <td className="col-unit">{p.unit}</td>
+                          <td className="col-qty">
+                            <input
+                              type="number" className="qty-input" min="0"
+                              value={qty || ''}
+                              onChange={e => handleQtyChange(p.id, e.target.value)}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td className={`col-cost ${hasQty ? 'cost-highlight' : ''}`}>
+                            {hasQty ? `¥${itemCost}` : '—'}
+                          </td>
+                          <td className={`col-profit ${hasQty ? (profitNum > 0 ? 'profit-positive' : profitNum < 0 ? 'profit-negative' : 'profit-zero') : ''}`}>
+                            {hasQty ? (profitNum >= 0 ? `+¥${itemProfit}` : `-¥${Math.abs(profitNum).toFixed(2)}`) : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="card-footer">
+                <span style={{fontSize:13,color:'var(--text-secondary)'}}>
+                  {summary.itemCount > 0 ? `${summary.itemCount} 项有数量 · 总成本 ¥${summary.totalCost} · 总利润 ¥${summary.totalProfit}` : '请在左侧粘贴订货清单或手动输入数量'}
+                </span>
+                <div style={{display:'flex',gap:6}}>
+                  <button className="btn btn-secondary btn-sm" onClick={handleCopyText}>📋 复制清单</button>
+                  <button className="btn btn-outline btn-sm" onClick={handleReset}>🔄 重置</button>
+                </div>
+              </div>
+            </section>
+          </main>
+
+          {/* 底部固定栏 */}
+          {summary.itemCount > 0 && (
+            <div className="bottom-bar">
+              <div className="bottom-bar-group">
+                <div className="bottom-bar-item">
+                  <span className="bottom-bar-label">总成本</span>
+                  <span className="bottom-bar-value warn">¥{summary.totalCost}</span>
+                </div>
+                <div className="bottom-bar-item">
+                  <span className="bottom-bar-label">总售价</span>
+                  <span className="bottom-bar-value">¥{summary.totalSell}</span>
+                </div>
+                <div className="bottom-bar-item">
+                  <span className="bottom-bar-label">利润</span>
+                  <span className={profitClass}>¥{summary.totalProfit}</span>
+                </div>
+              </div>
+              <div className="bottom-bar-actions">
+                <button className="btn btn-primary btn-lg" onClick={handleExport}>📥 导出成本表</button>
+              </div>
+            </div>
+          )}
+
+          <footer className="footer">
+            öh mo! 어모 · 成本测算工具
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
