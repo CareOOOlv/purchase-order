@@ -110,6 +110,20 @@
     .summary-card-value.gray { color: var(--text-secondary); }
     /* Footer */
     .footer { text-align: center; padding: 16px; padding-bottom: 90px; color: var(--text-muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: auto; }
+    /* Preview Card */
+    .preview-card {
+      border: 2px solid var(--primary) !important;
+      box-shadow: 0 4px 16px rgba(5,150,105,0.12);
+      scroll-margin-top: 70px;
+    }
+    .preview-table {
+      table-layout: fixed;
+      min-width: 700px;
+    }
+    .preview-table .col-name {
+      min-width: 0;
+      width: auto;
+    }
     /* Responsive */
     @media (max-width: 768px) {
       .main-content { padding: 10px; gap: 12px; }
@@ -218,6 +232,7 @@
       const [tab, setTab] = useState("paste"); // "paste" | "manual"
       const [textInput, setTextInput] = useState("");
       const [quantities, setQuantities] = useState({});
+      const [showPreview, setShowPreview] = useState(false);
 
       // 手动输入
       const handleQtyChange = useCallback((id, val) => {
@@ -470,6 +485,89 @@
                 </div>
               </div>
             </section>
+
+            {/* 成本预览卡片 */}
+            {summary.itemCount > 0 && (
+              <section className="card preview-card" id="preview-cost">
+                <div className="card-header" style={{background:'var(--primary-light)',borderBottom:'2px solid var(--primary)'}}>
+                  <span className="card-icon">📋</span>
+                  <span>成本汇总预览</span>
+                  <button className="btn btn-sm btn-outline" onClick={() => setShowPreview(false)} style={{marginLeft:'auto',fontSize:14}}>✕</button>
+                </div>
+                <div className="card-body">
+                  <div style={{display:'flex',gap:'24px',flexWrap:'wrap',marginBottom:'16px',fontSize:'14px',color:'var(--text-secondary)'}}>
+                    <span>📅 {new Date().toLocaleDateString('zh-CN', { year:'numeric', month:'long', day:'numeric' })}</span>
+                    <span>📦 共 {summary.itemCount} 项</span>
+                  </div>
+                  <div className="summary-row" style={{marginBottom:16}}>
+                    <div className="summary-card">
+                      <div className="summary-card-label">品项数</div>
+                      <div className="summary-card-value gray">{summary.itemCount}</div>
+                    </div>
+                    <div className="summary-card">
+                      <div className="summary-card-label">总成本</div>
+                      <div className="summary-card-value red">¥{summary.totalCost}</div>
+                    </div>
+                    <div className="summary-card">
+                      <div className="summary-card-label">总售价</div>
+                      <div className="summary-card-value gray">¥{summary.totalSell}</div>
+                    </div>
+                    <div className="summary-card">
+                      <div className="summary-card-label">总利润</div>
+                      <div className={`summary-card-value ${parseFloat(summary.totalProfit) > 0 ? 'green' : parseFloat(summary.totalProfit) < 0 ? 'red' : 'gray'}`}>
+                        ¥{summary.totalProfit}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="table-wrapper">
+                    <table className="product-table preview-table">
+                      <thead>
+                        <tr>
+                          <th className="col-seq">序号</th>
+                          <th className="col-name">商品名称</th>
+                          <th className="col-qty">数量</th>
+                          <th className="col-unit">单位</th>
+                          <th className="col-cost">成本单价</th>
+                          <th className="col-cost">成本小计</th>
+                          <th className="col-profit">利润</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {costProducts.filter(p => (quantities[p.id] || 0) > 0).map((p, i) => {
+                          const qty = quantities[p.id] || 0;
+                          const itemCost = (qty * p.cost).toFixed(2);
+                          const itemProfit = (qty * (p.price - p.cost)).toFixed(2);
+                          const profitNum = parseFloat(itemProfit);
+                          return (
+                            <tr key={p.id} className="row-active">
+                              <td className="col-seq">{i + 1}</td>
+                              <td className="col-name">{p.name}</td>
+                              <td className="col-qty">{qty}</td>
+                              <td className="col-unit">{p.unit}</td>
+                              <td className="col-cost">¥{p.cost.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}</td>
+                              <td className="col-cost cost-highlight">¥{itemCost}</td>
+                              <td className={`col-profit ${profitNum > 0 ? 'profit-positive' : profitNum < 0 ? 'profit-negative' : 'profit-zero'}`}>
+                                {profitNum >= 0 ? `+¥${itemProfit}` : `-¥${Math.abs(profitNum).toFixed(2)}`}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{fontWeight:700, background:'#f0fdf4'}}>
+                          <td colSpan={5} style={{textAlign:'right',paddingRight:'16px'}}>合计</td>
+                          <td className="col-cost cost-highlight" style={{fontSize:15}}>¥{summary.totalCost}</td>
+                          <td className={`col-profit ${parseFloat(summary.totalProfit) > 0 ? 'profit-positive' : parseFloat(summary.totalProfit) < 0 ? 'profit-negative' : 'profit-zero'}`} style={{fontSize:15}}>
+                            {parseFloat(summary.totalProfit) >= 0 ? `+¥${summary.totalProfit}` : `-¥${Math.abs(parseFloat(summary.totalProfit)).toFixed(2)}`}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="card-footer" style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                  <button className="btn btn-primary btn-lg" onClick={handleExport}>📥 导出成本表</button>
+                </div>
+              </section>
+            )}
           </main>
 
           {/* 底部固定栏 */}
